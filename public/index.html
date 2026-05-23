@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CF 临时邮箱 一键部署器</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #0b1220;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #0ea5e9;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --err: #f87171;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    height: 100vh;
+    gap: 0;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; height: auto; }
+  }
+  .sidebar {
+    background: var(--panel);
+    padding: 24px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+  }
+  h1 {
+    font-size: 18px;
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  h1 .badge {
+    font-size: 11px;
+    background: var(--accent-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #fff;
+    font-weight: 500;
+  }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .field { margin-bottom: 16px; }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  label .hint { color: var(--muted); font-weight: 400; }
+  input[type="text"], input[type="email"], input[type="password"], textarea {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { min-height: 60px; resize: vertical; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .checkbox-row input { accent-color: var(--accent); }
+  details {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+  }
+  details summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+    user-select: none;
+  }
+  details[open] { padding-bottom: 12px; }
+  button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent-2);
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  button:hover { background: var(--accent); }
+  button:disabled {
+    background: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+  .main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .stages {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: var(--panel-2);
+  }
+  .stage {
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stage::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .stage.running::before { background: var(--accent); animation: pulse 1.2s infinite; }
+  .stage.done::before { background: var(--ok); }
+  .stage.skipped::before { background: var(--warn); }
+  .stage.error::before { background: var(--err); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .logs {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+    font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .log-line { display: flex; gap: 8px; padding: 1px 0; }
+  .log-line .time { color: var(--muted); flex-shrink: 0; }
+  .log-line.error .msg { color: var(--err); }
+  .log-line.warn .msg { color: var(--warn); }
+  .log-line.info .msg { color: var(--text); }
+  .log-line.debug .msg { color: var(--muted); }
+  .log-line.success .msg { color: var(--ok); font-weight: 600; }
+  .empty {
+    color: var(--muted);
+    text-align: center;
+    padding: 64px 20px;
+    font-size: 14px;
+  }
+  .summary {
+    margin: 16px 24px;
+    padding: 16px;
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid var(--ok);
+    border-radius: 8px;
+  }
+  .summary h3 { margin: 0 0 12px 0; font-size: 14px; color: var(--ok); }
+  .summary table { width: 100%; font-size: 13px; border-collapse: collapse; }
+  .summary td { padding: 4px 0; }
+  .summary td:first-child { color: var(--muted); width: 130px; }
+  .summary td a { color: var(--accent); }
+  .summary code {
+    background: var(--panel-2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: ui-monospace, monospace;
+  }
+  .error-box {
+    margin: 16px 24px;
+    padding: 16px;
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid var(--err);
+    border-radius: 8px;
+    color: var(--err);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h1>CF 临时邮箱部署器 <span class="badge">一键</span></h1>
+    <p class="subtitle">基于 QLHazyCoder/cloudflare_temp_email · Wrangler CLI 包装</p>
+
+    <form id="deploy-form">
+      <div class="field">
+        <label>Cloudflare 登录邮箱 <span class="hint">必填</span></label>
+        <input type="email" name="email" placeholder="you@example.com" required autocomplete="email" />
+      </div>
+
+      <div class="field">
+        <label>Global API Key <span class="hint">必填,在 CF 控制台 My Profile → API Tokens 末尾</span></label>
+        <input type="password" name="apiKey" placeholder="••••••••••••••••" required autocomplete="off" />
+      </div>
+
+      <div class="field">
+        <label>用于临时邮箱的域名 <span class="hint">必填,多个用逗号分隔</span></label>
+        <textarea name="domains" placeholder="example.com, mail.example.com" required></textarea>
+      </div>
+
+      <details>
+        <summary>高级选项</summary>
+        <div style="margin-top: 12px;">
+          <div class="field">
+            <label>Worker 名称</label>
+            <input type="text" name="workerName" value="cloudflare-temp-email" />
+          </div>
+          <div class="field">
+            <label>Pages 项目名</label>
+            <input type="text" name="pagesProjectName" value="cloudflare-temp-email-frontend" />
+          </div>
+          <div class="field">
+            <label>D1 数据库名</label>
+            <input type="text" name="d1Name" value="temp-email-db" />
+          </div>
+          <div class="checkbox-row">
+            <input type="checkbox" name="skipPages" id="skipPages" />
+            <label for="skipPages" style="margin: 0;">跳过 Pages 部署 (仅 Worker 自带前端)</label>
+          </div>
+          <div class="checkbox-row">
+            <input type="checkbox" name="skipEmailRouting" id="skipEmailRouting" />
+            <label for="skipEmailRouting" style="margin: 0;">跳过 Email Routing 自动配置</label>
+          </div>
+        </div>
+      </details>
+
+      <button type="submit" id="submit-btn">开始部署</button>
+    </form>
+
+    <p style="margin-top: 24px; font-size: 12px; color: var(--muted);">
+      凭据仅在本机内存中使用,不会写入磁盘或上传到任何远程服务器。
+    </p>
+  </aside>
+
+  <section class="main">
+    <div class="stages" id="stages"></div>
+    <div class="logs" id="logs">
+      <div class="empty" id="empty">填写左侧表单并点击「开始部署」,日志将实时显示在这里。</div>
+    </div>
+    <div id="summary-slot"></div>
+  </section>
+</div>
+
+<script>
+const form = document.getElementById('deploy-form');
+const submitBtn = document.getElementById('submit-btn');
+const logsEl = document.getElementById('logs');
+const stagesEl = document.getElementById('stages');
+const emptyEl = document.getElementById('empty');
+const summarySlot = document.getElementById('summary-slot');
+
+const STAGE_LABELS = {
+  init: '启动',
+  verify: '校验凭据',
+  zones: '校验域名',
+  repo: '拉取源码',
+  d1: '创建 D1',
+  schema: '初始化 schema',
+  kv: '创建 KV',
+  'frontend-build': '构建前端',
+  worker: '部署 Worker',
+  pages: '部署 Pages',
+  email: 'Email Routing',
+};
+
+const stages = new Map();
+
+function ensureStage(id) {
+  if (stages.has(id)) return stages.get(id);
+  const el = document.createElement('span');
+  el.className = 'stage';
+  el.textContent = STAGE_LABELS[id] || id;
+  stagesEl.appendChild(el);
+  stages.set(id, el);
+  return el;
+}
+
+function setStage(id, status, message) {
+  const el = ensureStage(id);
+  el.classList.remove('running', 'done', 'skipped', 'error');
+  if (status) el.classList.add(status);
+  el.title = message || '';
+}
+
+function appendLog(level, message) {
+  if (emptyEl && emptyEl.parentNode) emptyEl.remove();
+  const t = new Date();
+  const time = t.toTimeString().slice(0, 8);
+  const div = document.createElement('div');
+  div.className = `log-line ${level}`;
+  div.innerHTML = `<span class="time">${time}</span><span class="msg"></span>`;
+  div.querySelector('.msg').textContent = message;
+  logsEl.appendChild(div);
+  logsEl.scrollTop = logsEl.scrollHeight;
+}
+
+function renderSummary(result) {
+  summarySlot.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'summary';
+  const workerLink = result.workerUrl
+    ? `<a href="${result.workerUrl}" target="_blank">${result.workerUrl}</a>`
+    : '(无)';
+  const pagesLink = result.pagesUrl
+    ? `<a href="${result.pagesUrl}" target="_blank">${result.pagesUrl}</a>`
+    : '(已跳过)';
+  div.innerHTML = `
+    <h3>部署成功</h3>
+    <table>
+      <tr><td>Worker URL</td><td>${workerLink}</td></tr>
+      <tr><td>Pages URL</td><td>${pagesLink}</td></tr>
+      <tr><td>Worker 名称</td><td><code>${result.workerName}</code></td></tr>
+      <tr><td>D1 数据库</td><td><code>${result.d1Name}</code> (${result.d1Id})</td></tr>
+      <tr><td>KV ID</td><td><code>${result.kvId || '(未创建)'}</code></td></tr>
+      <tr><td>管理员密码</td><td><code>${result.adminPassword}</code> · 请妥善保存</td></tr>
+      <tr><td>邮箱域名</td><td>${result.domains.map(d => '<code>' + d + '</code>').join(' ')}</td></tr>
+    </table>
+  `;
+  summarySlot.appendChild(div);
+}
+
+function renderError(message) {
+  summarySlot.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'error-box';
+  div.innerHTML = '<strong>部署失败:</strong><br>';
+  const pre = document.createElement('pre');
+  pre.style.margin = '8px 0 0 0';
+  pre.style.whiteSpace = 'pre-wrap';
+  pre.textContent = message;
+  div.appendChild(pre);
+  summarySlot.appendChild(div);
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  submitBtn.disabled = true;
+  submitBtn.textContent = '部署中...';
+  logsEl.innerHTML = '';
+  stagesEl.innerHTML = '';
+  stages.clear();
+  summarySlot.innerHTML = '';
+
+  const fd = new FormData(form);
+  const domains = String(fd.get('domains') || '')
+    .split(/[\s,，;；]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const payload = {
+    email: fd.get('email'),
+    apiKey: fd.get('apiKey'),
+    domains,
+    workerName: fd.get('workerName') || undefined,
+    pagesProjectName: fd.get('pagesProjectName') || undefined,
+    d1Name: fd.get('d1Name') || undefined,
+    skipPages: fd.get('skipPages') === 'on',
+    skipEmailRouting: fd.get('skipEmailRouting') === 'on',
+  };
+
+  appendLog('info', '提交部署请求...');
+
+  let res;
+  try {
+    res = await fetch('/api/deploy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    appendLog('error', '无法连接到部署器: ' + err.message);
+    submitBtn.disabled = false;
+    submitBtn.textContent = '开始部署';
+    return;
+  }
+
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({ error: '请求失败' }));
+    appendLog('error', '请求被拒绝: ' + (errBody.error || res.statusText));
+    submitBtn.disabled = false;
+    submitBtn.textContent = '开始部署';
+    return;
+  }
+
+  const { sessionId } = await res.json();
+  appendLog('info', `部署会话已启动: ${sessionId}`);
+
+  const es = new EventSource(`/api/logs/${sessionId}`);
+  es.addEventListener('message', (evt) => {
+    let data;
+    try { data = JSON.parse(evt.data); } catch { return; }
+    if (data.type === 'log') {
+      appendLog(data.level || 'info', data.message);
+    } else if (data.type === 'stage') {
+      setStage(data.id, data.status, data.message);
+      if (data.message) appendLog('info', `[${STAGE_LABELS[data.id] || data.id}] ${data.message}`);
+    } else if (data.type === 'done') {
+      appendLog('success', '全部完成');
+      renderSummary(data.result);
+      es.close();
+      submitBtn.disabled = false;
+      submitBtn.textContent = '开始部署';
+    } else if (data.type === 'error') {
+      appendLog('error', data.message);
+      renderError(data.message + (data.stack ? '\n\n' + data.stack : ''));
+      es.close();
+      submitBtn.disabled = false;
+      submitBtn.textContent = '重新部署';
+    }
+  });
+  es.onerror = () => {
+    appendLog('warn', 'SSE 连接断开,正在重连...');
+  };
+});
+</script>
+</body>
+</html>

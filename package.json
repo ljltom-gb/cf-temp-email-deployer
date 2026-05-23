@@ -1,0 +1,18 @@
+{
+  "name": "cf-temp-email-deployer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "一键将 QLHazyCoder/cloudflare_temp_email 部署到 Cloudflare 的本地 Web 部署器",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "simple-git": "^3.27.0"
+  }
+}

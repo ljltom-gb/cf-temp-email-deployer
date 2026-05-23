@@ -1,0 +1,6 @@
+node_modules/
+work/
+*.log
+.env
+.DS_Store
+试卷/
