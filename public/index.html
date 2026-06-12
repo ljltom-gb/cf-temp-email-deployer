@@ -232,6 +232,11 @@
         <textarea name="domains" placeholder="example.com, mail.example.com" required></textarea>
       </div>
 
+      <div class="field">
+        <label>邮箱子域名前缀 <span class="hint">可选,支持 1-3 级,多个用逗号分隔</span></label>
+        <textarea name="emailSubdomains" placeholder="mail, tmp.mail, dev.tmp.mail"></textarea>
+      </div>
+
       <details>
         <summary>高级选项</summary>
         <div style="margin-top: 12px;">
@@ -288,6 +293,7 @@ const STAGE_LABELS = {
   verify: '校验凭据',
   zones: '校验域名',
   repo: '拉取源码',
+  names: '检查名称',
   d1: '创建 D1',
   schema: '初始化 schema',
   kv: '创建 KV',
@@ -345,7 +351,7 @@ function renderSummary(result) {
       <tr><td>Pages URL</td><td>${pagesLink}</td></tr>
       <tr><td>Worker 名称</td><td><code>${result.workerName}</code></td></tr>
       <tr><td>D1 数据库</td><td><code>${result.d1Name}</code> (${result.d1Id})</td></tr>
-      <tr><td>KV ID</td><td><code>${result.kvId || '(未创建)'}</code></td></tr>
+      <tr><td>KV Namespace</td><td><code>${result.kvName || '(未创建)'}</code> ${result.kvId ? '(' + result.kvId + ')' : ''}</td></tr>
       <tr><td>管理员密码</td><td><code>${result.adminPassword}</code> · 请妥善保存</td></tr>
       <tr><td>邮箱域名</td><td>${result.domains.map(d => '<code>' + d + '</code>').join(' ')}</td></tr>
     </table>
@@ -380,11 +386,16 @@ form.addEventListener('submit', async (e) => {
     .split(/[\s,，;；]+/)
     .map((s) => s.trim())
     .filter(Boolean);
+  const emailSubdomains = String(fd.get('emailSubdomains') || '')
+    .split(/[\s,，;；]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   const payload = {
     email: fd.get('email'),
     apiKey: fd.get('apiKey'),
     domains,
+    emailSubdomains,
     workerName: fd.get('workerName') || undefined,
     pagesProjectName: fd.get('pagesProjectName') || undefined,
     d1Name: fd.get('d1Name') || undefined,
