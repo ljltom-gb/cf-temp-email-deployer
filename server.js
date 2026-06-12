@@ -51,7 +51,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/deploy', async (req, res) => {
-  const { email, apiKey, domains, workerName, pagesProjectName, d1Name, skipPages, skipEmailRouting } = req.body || {};
+  const { email, apiKey, domains, emailSubdomains, workerName, pagesProjectName, d1Name, skipPages, skipEmailRouting } = req.body || {};
 
   if (!email || !apiKey || !Array.isArray(domains) || domains.length === 0) {
     return res.status(400).json({ error: 'email / apiKey / domains 必填' });
@@ -71,6 +71,7 @@ app.post('/api/deploy', async (req, res) => {
           email,
           apiKey,
           domains,
+          emailSubdomains,
           workerName,
           pagesProjectName,
           d1Name,
